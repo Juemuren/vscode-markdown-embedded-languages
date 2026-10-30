@@ -1,42 +1,42 @@
+import MarkdownIt from 'markdown-it';
+
 export interface Fence {
   alias: string;
   startLine: number;
   endLine: number;
+  contentStartColumns: number[];
 }
 
-/** endLine is exclusive. Only ordinary (possibly up to three spaces indented) fences are supported. */
+const parser = new MarkdownIt();
+
+/** Parse fenced blocks using CommonMark rules. endLine is exclusive. */
 export function parseFences(text: string): Fence[] {
-  const lines = text.split(/\r?\n/);
-  const fences: Fence[] = [];
-  let open: { alias: string; marker: string; count: number; startLine: number } | undefined;
+  const sourceLines = text.split(/\r?\n/);
+  return parser.parse(text, {}).flatMap((token): Fence[] => {
+    if (token.type !== 'fence' || !token.map) return [];
+    const alias = token.info.trim().split(/[ \t{]/, 1)[0];
+    if (!alias) return [];
 
-  for (let line = 0; line < lines.length; line++) {
-    const value = lines[line];
-    if (open) {
-      const close = /^(?: {0,3})(`+|~+)[ \t]*$/.exec(value);
-      if (close && close[1][0] === open.marker && close[1].length >= open.count) {
-        fences.push({ alias: open.alias, startLine: open.startLine, endLine: line });
-        open = undefined;
-      }
-      continue;
-    }
-
-    const match = /^(?: {0,3})(`{3,}|~{3,})(.*)$/.exec(value);
-    if (!match || (match[1][0] === '`' && match[2].includes('`'))) continue;
-    const alias = match[2].trim().split(/[ \t{]/, 1)[0];
-    if (!alias) continue;
-    open = { alias, marker: match[1][0], count: match[1].length, startLine: line + 1 };
-  }
-
-  if (open) fences.push({ alias: open.alias, startLine: open.startLine, endLine: lines.length });
-  return fences;
+    const contentLines = token.content.split('\n');
+    if (token.content.endsWith('\n')) contentLines.pop();
+    if (!token.content) contentLines.length = 0;
+    const startLine = token.map[0] + 1;
+    const contentStartColumns = contentLines.map((content, index) => {
+      const source = sourceLines[startLine + index] ?? '';
+      const column = source.lastIndexOf(content);
+      return column < 0 ? 0 : column;
+    });
+    return [{ alias, startLine, endLine: startLine + contentLines.length, contentStartColumns }];
+  });
 }
 
-/** Preserve every line and column, so provider ranges map directly onto Markdown. */
+/** Preserve source positions while removing Markdown structure outside the fence body. */
 export function maskedContent(text: string, fence: Fence): string {
   return text.split(/(\r?\n)/).map((part, index) => {
     if (index % 2) return part;
     const line = index / 2;
-    return line >= fence.startLine && line < fence.endLine ? part : part.replace(/[^\t]/g, ' ');
+    if (line < fence.startLine || line >= fence.endLine) return part.replace(/[^\t]/g, ' ');
+    const start = fence.contentStartColumns[line - fence.startLine];
+    return part.slice(0, start).replace(/[^\t]/g, ' ') + part.slice(start);
   }).join('');
 }

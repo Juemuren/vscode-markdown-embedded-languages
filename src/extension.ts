@@ -68,7 +68,8 @@ export function activate(context: vscode.ExtensionContext): void {
   }
 
   function contains(entry: Entry, position: vscode.Position): boolean {
-    return position.line >= entry.fence.startLine && position.line < entry.fence.endLine;
+    return position.line >= entry.fence.startLine && position.line < entry.fence.endLine &&
+      position.character >= entry.fence.contentStartColumns[position.line - entry.fence.startLine];
   }
 
   async function openVirtual(entry: Entry): Promise<vscode.TextDocument> {

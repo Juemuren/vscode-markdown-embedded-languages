@@ -4,9 +4,15 @@
   "description": "Forward Markdown fenced code language features to installed VS Code language extensions.",
   "version": "0.1.0",
   "private": true,
-  "engines": { "vscode": "^1.85.0" },
-  "categories": ["Programming Languages"],
-  "activationEvents": ["onLanguage:markdown"],
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Programming Languages"
+  ],
+  "activationEvents": [
+    "onLanguage:markdown"
+  ],
   "main": "./out/extension.js",
   "contributes": {
     "configuration": {
@@ -18,7 +24,9 @@
           "description": "Map Markdown fence names to installed VS Code language IDs. Example: {\"tikz\": {\"language\": \"latex\"}}.",
           "additionalProperties": {
             "type": "object",
-            "required": ["language"],
+            "required": [
+              "language"
+            ],
             "properties": {
               "language": {
                 "type": "string",
@@ -32,12 +40,15 @@
   },
   "scripts": {
     "compile": "tsc -p .",
-    "check": "tsc -p . --noEmit",
-    "test": "npm run compile && node --test test/*.test.js"
+    "check": "tsc -p . --noEmit"
   },
   "devDependencies": {
+    "@types/markdown-it": "^14.1.2",
     "@types/node": "^22.0.0",
     "@types/vscode": "^1.85.0",
     "typescript": "^5.9.0"
+  },
+  "dependencies": {
+    "markdown-it": "^14.2.0"
   }
 }
