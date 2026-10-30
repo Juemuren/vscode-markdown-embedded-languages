@@ -1,0 +1,8 @@
+{
+  "javascript": {
+    "grammar": "builtin:JavaScript.tmLanguage.json"
+  },
+  "latex": {
+    "grammar": "builtin:LaTeX.tmLanguage.json"
+  }
+}

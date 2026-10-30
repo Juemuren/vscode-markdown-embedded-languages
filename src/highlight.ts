@@ -20,6 +20,7 @@ const tokenTypes = [
 ];
 const legend = new vscode.SemanticTokensLegend(tokenTypes);
 const typeIndexes = new Map(tokenTypes.map((type, index) => [type, index]));
+const builtinGrammars = require('../builtin/grammars.json') as Record<string, HighlightSettings>;
 
 let onigurumaReady: Promise<void> | undefined;
 function ensureOniguruma(): Promise<void> {
@@ -29,7 +30,10 @@ function ensureOniguruma(): Promise<void> {
   return onigurumaReady;
 }
 
-function resolveGrammar(document: vscode.TextDocument, grammarPath: string): vscode.Uri {
+function resolveGrammar(context: vscode.ExtensionContext, document: vscode.TextDocument, grammarPath: string): vscode.Uri {
+  if (grammarPath.startsWith('builtin:')) {
+    return vscode.Uri.joinPath(context.extensionUri, 'builtin', grammarPath.slice('builtin:'.length));
+  }
   if (/^(?:[a-zA-Z]:[\\/]|[\\/]{2})/.test(grammarPath)) return vscode.Uri.file(grammarPath);
   const folder = vscode.workspace.getWorkspaceFolder(document.uri);
   const base = folder?.uri ?? vscode.Uri.joinPath(document.uri, '..');
@@ -66,7 +70,7 @@ export function registerHighlighting(context: vscode.ExtensionContext): vscode.D
   context.subscriptions.push(changed, output);
 
   async function loadGrammar(document: vscode.TextDocument, settings: HighlightSettings): Promise<textmate.IGrammar | null> {
-    const rootUri = resolveGrammar(document, settings.grammar);
+    const rootUri = resolveGrammar(context, document, settings.grammar);
     const key = rootUri.toString() + JSON.stringify(settings.grammars ?? {});
     let pending = grammars.get(key);
     if (!pending) {
@@ -87,7 +91,7 @@ export function registerHighlighting(context: vscode.ExtensionContext): vscode.D
               output.appendLine(`Missing grammar for scope ${scopeName} (referenced by ${settings.grammar})`);
               return null;
             }
-            const uri = resolveGrammar(document, dependency);
+            const uri = resolveGrammar(context, document, dependency);
             return textmate.parseRawGrammar(
               Buffer.from(await vscode.workspace.fs.readFile(uri)).toString('utf8'), uri.path,
             );
@@ -140,7 +144,10 @@ export function registerHighlighting(context: vscode.ExtensionContext): vscode.D
         const builder = new vscode.SemanticTokensBuilder(legend);
         for (const fence of parseFences(document.getText())) {
           if (token.isCancellationRequested) break;
-          const highlight = settings[fence.alias]?.highlight;
+          const language = settings[fence.alias];
+          const highlight = language?.highlight ?? (language?.language
+            ? builtinGrammars[language.language]
+            : undefined);
           if (!highlight?.grammar) continue;
           const grammar = await loadGrammar(document, highlight);
           if (grammar) addFenceTokens(document, fence, grammar, builder);

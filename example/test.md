@@ -3,7 +3,9 @@
 ## TikZ
 
 ```tikz
-\draw (0,0);
+\begin{tikzpicture}
+  \draw (0,0);
+\end{tikzpicture}
 ```
 
 ## JSXGraph

@@ -1,0 +1,9 @@
+{
+  "scopeName": "source.example.javascript",
+  "patterns": [
+    { "name": "comment.line.double-slash.js", "match": "//.*$" },
+    { "name": "string.quoted.double.js", "begin": "\"", "end": "\"", "patterns": [{ "name": "constant.character.escape.js", "match": "\\\\." }] },
+    { "name": "keyword.control.js", "match": "\\b(?:const|let|var|function|return)\\b" },
+    { "name": "constant.numeric.js", "match": "\\b\\d+(?:\\.\\d+)?\\b" }
+  ]
+}

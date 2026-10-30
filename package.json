@@ -46,7 +46,7 @@
                 "properties": {
                   "grammar": {
                     "type": "string",
-                    "description": "JSON or plist TextMate grammar path, relative to the workspace root or absolute."
+                    "description": "Override the built-in grammar with a JSON or plist TextMate grammar path, relative to the workspace root or absolute."
                   },
                   "grammars": {
                     "type": "object",

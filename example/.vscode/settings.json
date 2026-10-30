@@ -3,7 +3,9 @@
     "tikz": { "language": "latex" },
     "jsxgraph": {
       "language": "javascript",
-      "highlight": { "grammar": "javascript.tmLanguage.json" }
+      "highlight": {
+        "grammar": "grammars/javascript.tmLanguage.json"
+      }
     }
   }
 }
