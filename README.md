@@ -1,6 +1,6 @@
 # Markdown Embedded Languages
 
-一个声明式的 Markdown 嵌入语言适配器
+一个声明式的 Markdown 嵌入语言适配器。
 
 ## 功能
 
@@ -24,7 +24,7 @@ Renderer Adapter
 existing VSCode markdown preview
 ```
 
-自定义渲染 MPE 可以实现，但和我想要的声明式接口不一致。我希望的接口类似于
+## 设置示例
 
 ```json
 {
@@ -32,26 +32,32 @@ existing VSCode markdown preview
     "tikz": {
       "language": "latex",
       "virtualDocument": {
-        "template": ".vscode/tikz-template.tex"
+        "template": "./templates/tikz-template.tex"
       },
-
       "preview": {
-        "script": "./preview/tikz.js",
-        "style": "./preview/tikz.css"
+        "script": "./previews/tikz.js",
+        "style": "./previews/tikz.css"
       }
     },
 
     "jsxgraph": {
       "language": "javascript",
-
       "preview": {
-        "script": "./preview/jsxgraph.js"
+        "script": "./previews/jsxgraph.js"
+      },
+      "highlight": {
+        "grammar": "./grammars/javascript.tmLanguage.json"
       }
+    }
     }
   }
 }
 ```
 
-扩展本身可以捆绑一些 `virtualDocument` / `preview.script` / `preview.style` 文件，做到开箱即用，但我希望用户仍然可以灵活地自定义。
+扩展为了开箱即用，会提供默认设置并捆绑一些文件；但用户可以覆盖默认设置，以及添加任意的新语言适配。
 
-实现计划参考 [PLAN.md](docs/PLAN.md)。目前的进度参考 [STATUS.md](docs/STATUS.md)。
+## 文档
+
+- 实现计划 [PLAN.md](docs/PLAN.md)
+- 当前进度 [STATUS.md](docs/STATUS.md)
+- 开发文档 [DEV.md](docs/DEV.md)
