@@ -1,0 +1,12 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Probe language compatibility",
+      "type": "npm",
+      "script": "test:compat",
+      "group": "test",
+      "problemMatcher": []
+    }
+  ]
+}

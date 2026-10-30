@@ -1,0 +1,9 @@
+{
+  "language": "javascript",
+  "alias": "jsalias",
+  "extension": "js",
+  "extensionId": "vscode.typescript-language-features",
+  "source": "const answer = Math.PI;\nMath.\nconst broken = ;\n",
+  "completion": { "line": 1, "character": 5 },
+  "hover": { "line": 0, "character": 16 }
+}

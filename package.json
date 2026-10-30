@@ -65,7 +65,8 @@
   },
   "scripts": {
     "compile": "tsc -p .",
-    "check": "tsc -p . --noEmit"
+    "check": "tsc -p . --noEmit",
+    "test:compat": "npm run compile && node compat/scripts/run.js"
   },
   "devDependencies": {
     "@types/markdown-it": "^14.1.2",
