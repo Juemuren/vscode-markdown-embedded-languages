@@ -1,0 +1,6 @@
+{
+  "markdownEmbeddedLanguages.languages": {
+    "tikz": { "language": "latex" },
+    "jsxgraph": { "language": "javascript" }
+  }
+}
