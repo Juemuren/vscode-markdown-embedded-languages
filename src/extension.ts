@@ -1,8 +1,9 @@
 import * as vscode from 'vscode';
 import { type Fence, maskedContent, parseFences } from './fences';
+import { type LanguageSettings, registerHighlighting } from './highlight';
 
 const scheme = 'markdown-embedded-language';
-type LanguageSettings = Record<string, { language?: string }>;
+type LanguageMap = Record<string, LanguageSettings>;
 
 interface Entry {
   fence: Fence;
@@ -22,6 +23,7 @@ const extensions: Record<string, string> = {
 };
 
 export function activate(context: vscode.ExtensionContext): void {
+  context.subscriptions.push(registerHighlighting(context));
   const sources = new Map<string, SourceState>();
   const virtual = new Map<string, Entry>();
   const changed = new vscode.EventEmitter<vscode.Uri>();
@@ -39,7 +41,7 @@ export function activate(context: vscode.ExtensionContext): void {
     if (previous?.version === document.version) return previous;
 
     const settings = vscode.workspace.getConfiguration('markdownEmbeddedLanguages', document.uri)
-      .get<LanguageSettings>('languages', {});
+      .get<LanguageMap>('languages', {});
     const text = document.getText();
     const entries = parseFences(text).flatMap((fence, index): Entry[] => {
       const language = settings[fence.alias]?.language;
