@@ -61,6 +61,13 @@ exports.run = async function run() {
     result.virtualDocuments = vscode.workspace.textDocuments
       .filter(document => document.uri.scheme === 'markdown-embedded-language')
       .map(document => ({ languageId: document.languageId, diagnostics: diagnostics(document) }));
+    result.untitledDocuments = vscode.workspace.textDocuments
+      .filter(document => document.uri.scheme === 'untitled' && document.languageId === fixture.language)
+      .map(document => ({
+        languageId: document.languageId,
+        isDirty: document.isDirty,
+        diagnostics: diagnostics(document),
+      }));
     const tokens = await vscode.commands.executeCommand('vscode.provideDocumentSemanticTokens', markdown.uri);
     result.markdown.semanticTokenCount = (tokens?.data?.length ?? 0) / 5;
     if (result.extension) result.extension.activeAfter = extension?.isActive;
