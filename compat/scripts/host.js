@@ -35,25 +35,6 @@ function compareItems(baseline, markdown, key) {
     unmatchedItems(markdown, baseline, key).length === 0 ? 'forwarded' : 'partial';
 }
 
-function semanticTokens(tokens, legend) {
-  const decoded = [];
-  let line = 0;
-  let character = 0;
-  for (let index = 0; index < (tokens?.data?.length ?? 0); index += 5) {
-    const lineDelta = tokens.data[index];
-    line += lineDelta;
-    character = lineDelta === 0 ? character + tokens.data[index + 1] : tokens.data[index + 1];
-    decoded.push({
-      line, character,
-      length: tokens.data[index + 2],
-      tokenType: legend?.tokenTypes?.[tokens.data[index + 3]] ?? `#${tokens.data[index + 3]}`,
-      tokenModifiers: legend?.tokenModifiers?.filter((_, bit) =>
-        (tokens.data[index + 4] & (1 << bit)) !== 0) ?? [`#${tokens.data[index + 4]}`],
-    });
-  }
-  return decoded;
-}
-
 async function probe(document, completion, hover) {
   await vscode.window.showTextDocument(document);
   let items = [];
@@ -117,26 +98,6 @@ exports.run = async function run() {
         isDirty: document.isDirty,
         diagnostics: diagnostics(document),
       }));
-    const baselineLegend = await vscode.commands.executeCommand(
-      'vscode.provideDocumentSemanticTokensLegend', baseline.uri);
-    const markdownLegend = await vscode.commands.executeCommand(
-      'vscode.provideDocumentSemanticTokensLegend', markdown.uri);
-    const baselineTokens = semanticTokens(await vscode.commands.executeCommand(
-      'vscode.provideDocumentSemanticTokens', baseline.uri), baselineLegend);
-    const markdownTokens = semanticTokens(await vscode.commands.executeCommand(
-      'vscode.provideDocumentSemanticTokens', markdown.uri), markdownLegend);
-    const { markdownSourceStart: start, markdownSourceEnd: end } = config;
-    const embeddedTokens = markdownTokens.filter(token =>
-      (token.line > start.line || (token.line === start.line && token.character >= start.character)) &&
-      (token.line < end.line || (token.line === end.line && token.character < end.character)))
-      .map(token => ({
-        ...token,
-        line: token.line - start.line,
-        character: token.character - (token.line === start.line ? start.character : 0),
-      }));
-    result.baseline.semanticTokenCount = baselineTokens.length;
-    result.markdown.semanticTokenCount = markdownTokens.length;
-    result.markdown.embeddedSemanticTokenCount = embeddedTokens.length;
     if (result.extension) result.extension.activeAfter = extension?.isActive;
     const markdownDiagnostics = result.markdown.diagnostics.map(item => ({
       ...item, line: item.line - config.markdownSourceStart.line,
