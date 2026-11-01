@@ -37,15 +37,13 @@
 
 ## 第二版
 
-第二版支持 `virtualDocument.template`
+第二版支持 `template`
 
 ```json
 {
   "tikz": {
     "language": "latex",
-    "virtualDocument": {
-      "template": ".vscode/tikz-template.tex"
-    }
+    "template": "./templates/tikz.tex"
   }
 }
 ```
@@ -53,7 +51,7 @@
 `template` 文件里可以使用 `{{content}}` 作为占位符，这会被替换为 fence code block 中的文本
 
 ```tex
-% .vscode/tikz-template.tex
+% templates/tikz.tex
 \documentclass[tikz]{standalone}
 \usepackage{tikz}
 \begin{document}
@@ -69,10 +67,7 @@
 {
   "tikz": {
     "language": "latex",
-    "virtualDocument": {
-      "template": ".vscode/tikz-template.tex"
-    },
-
+    "template": "./templates/tikz.tex",
     "preview": {
       "script": "./preview/tikz.js",
       "style": "./preview/tikz.css"
@@ -87,18 +82,16 @@
 
 ```json
 {
-  "jsxgraph": {
-    "language": "javascript",
-    "virtualDocument": {
-      "template": ".vscode/jsxgraph-template.tex"
-    }
+  "cetz": {
+    "language": "typst",
+    "template": "./templates/cetz.typ"
   }
 }
 ```
 
 虚拟文档为
 
-```js
+```typst
 #import "@preview/cetz:0.5.2"
 #set page(width: {{attributes.width}}, height: {{attributes.height}}, margin: 0pt, fill: none)
 #cetz.canvas({
