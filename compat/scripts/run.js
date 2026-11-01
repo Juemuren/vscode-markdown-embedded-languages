@@ -1,6 +1,6 @@
 const fs = require('node:fs');
 const path = require('node:path');
-const { spawn, spawnSync } = require('node:child_process');
+const spawn = require('cross-spawn');
 
 const project = path.resolve(__dirname, '..', '..');
 const caseName = process.argv[2] ?? 'javascript';
@@ -93,19 +93,7 @@ fs.copyFileSync(sourcePath, baselinePath);
 fs.writeFileSync(path.join(workspace, 'sample.md'), beforeSource + sourceText + afterSource);
 fs.writeFileSync(path.join(runDir, 'config.json'), JSON.stringify({ ...config, markdownSourceStart }, null, 2));
 
-function vscodeExecutable() {
-  if (process.env.VSCODE_CLI) return process.env.VSCODE_CLI;
-  if (process.platform !== 'win32') return 'code';
-  const lookup = spawnSync('where.exe', ['code.cmd'], { encoding: 'utf8' });
-  const launcher = lookup.stdout?.split(/\r?\n/).find(Boolean);
-  if (launcher) {
-    const executable = path.resolve(path.dirname(launcher), '..', 'Code.exe');
-    if (fs.existsSync(executable)) return executable;
-  }
-  throw new Error('Cannot find code; set VSCODE_CLI to the VS Code executable path');
-}
-
-const code = vscodeExecutable();
+const code = process.env.VSCODE_CLI || 'code';
 const args = [
   `--extensionDevelopmentPath=${project}`,
   `--extensionTestsPath=${path.join(__dirname, 'host.js')}`,
@@ -116,7 +104,7 @@ const args = [
 
 async function run() {
   if (vsixPath) {
-    const install = spawnSync(code, [
+    const install = spawn.sync(code, [
       '--install-extension', vsixPath,
       `--user-data-dir=${userDataDir}`,
       `--extensions-dir=${extensionsDir}`,
@@ -125,6 +113,14 @@ async function run() {
     if (install.status !== 0) {
       throw new Error(`VSIX installation failed: ${vsixPath} (${install.status ?? install.signal})`);
     }
+    const installedExtensions = JSON.parse(fs.readFileSync(path.join(extensionsDir, 'extensions.json'), 'utf8'));
+    const installed = config.extension.id
+      ? installedExtensions.find(entry => entry.identifier?.id === config.extension.id)
+      : installedExtensions.at(-1);
+    if (!installed?.relativeLocation) {
+      throw new Error(`Installed extension not found in ${extensionsDir}: ${config.extension.id}`);
+    }
+    args.splice(1, 0, `--extensionDevelopmentPath=${path.join(extensionsDir, installed.relativeLocation)}`);
   }
   const child = spawn(code, args, {
     cwd: project,

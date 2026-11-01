@@ -60,7 +60,7 @@
 运行检测任务的要求为
 
 - 本机已安装 VS Code 且 `code` 在 PATH 中
-- 可用 `VSCODE_CLI` 环境变量设置 VS Code 可执行文件的路径；Windows 上应指向 `Code.exe`
+- 可用 `VSCODE_CLI` 环境变量设置 VS Code 命令行入口的路径；Windows 上应指向 `code.cmd`
 
 ### 配置语言扩展兼容性检测任务
 
