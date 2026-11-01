@@ -42,28 +42,32 @@ exports.run = async function run() {
   const result = { vscodeVersion: vscode.version };
   try {
     if (!runDir) throw new Error('COMPAT_RUN_DIR is missing');
-    const fixture = JSON.parse(fs.readFileSync(path.join(runDir, 'fixture.json'), 'utf8'));
+    const config = JSON.parse(fs.readFileSync(path.join(runDir, 'config.json'), 'utf8'));
     const workspace = path.join(runDir, 'workspace');
-    const extensionId = fixture.extension?.id;
+    const extensionId = config.extension?.id;
     const extension = extensionId && vscode.extensions.getExtension(extensionId);
     result.extension = extensionId ? {
       id: extensionId, present: !!extension, activeBefore: extension?.isActive,
     } : undefined;
     const baseline = await vscode.workspace.openTextDocument(
-      vscode.Uri.file(path.join(workspace, `baseline${path.extname(fixture.source)}`)));
+      vscode.Uri.file(path.join(workspace, `baseline${path.extname(config.source)}`)));
     const markdown = await vscode.workspace.openTextDocument(
       vscode.Uri.file(path.join(workspace, 'sample.md')));
-    if (baseline.languageId !== fixture.language) {
-      throw new Error(`Baseline language is ${baseline.languageId}, expected ${fixture.language}`);
+    if (baseline.languageId !== config.language) {
+      throw new Error(`Baseline language is ${baseline.languageId}, expected ${config.language}`);
     }
-    const shifted = position => ({ line: position.line + 3, character: position.character });
-    result.baseline = await probe(baseline, fixture.completion, fixture.hover);
-    result.markdown = await probe(markdown, shifted(fixture.completion), shifted(fixture.hover));
+    const markdownPosition = position => ({
+      line: config.markdownSourceStart.line + position.line,
+      character: position.character + (position.line === 0 ? config.markdownSourceStart.character : 0),
+    });
+    result.baseline = await probe(baseline, config.completion, config.hover);
+    result.markdown = await probe(markdown,
+      markdownPosition(config.completion), markdownPosition(config.hover));
     result.virtualDocuments = vscode.workspace.textDocuments
       .filter(document => document.uri.scheme === 'markdown-embedded-language')
       .map(document => ({ languageId: document.languageId, diagnostics: diagnostics(document) }));
     result.untitledDocuments = vscode.workspace.textDocuments
-      .filter(document => document.uri.scheme === 'untitled' && document.languageId === fixture.language)
+      .filter(document => document.uri.scheme === 'untitled' && document.languageId === config.language)
       .map(document => ({
         languageId: document.languageId,
         isDirty: document.isDirty,

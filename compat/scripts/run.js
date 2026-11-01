@@ -4,11 +4,11 @@ const { spawn, spawnSync } = require('node:child_process');
 
 const project = path.resolve(__dirname, '..', '..');
 const caseName = process.argv[2] ?? 'javascript';
-const caseDir = /^[\w-]+$/.test(caseName)
+const configDir = /^[\w-]+$/.test(caseName)
   ? path.join(__dirname, '..', 'configs', caseName)
   : path.resolve(caseName);
-const fixturePath = path.join(caseDir, 'config.json');
-const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+const configPath = path.join(configDir, 'config.json');
+const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
 const envDir = path.join(project, 'compat', 'envs');
 const runDir = path.join(project, '.tmp', 'compat', `${Date.now()}-${process.pid}`);
 const workspace = path.join(runDir, 'workspace');
@@ -16,41 +16,66 @@ const userDataDir = path.join(runDir, 'user-data');
 const extensionsDir = path.join(runDir, 'extensions');
 const resultPath = path.join(runDir, 'result.json');
 
-function position(value, name, lines) {
+function validatePosition(value, name, lines) {
   if (!value || !Number.isInteger(value.line) || !Number.isInteger(value.character) ||
       value.line < 0 || value.line >= lines.length || value.character < 0 ||
       value.character > lines[value.line].length) {
-    throw new Error(`Invalid ${name} position in ${fixturePath}`);
+    throw new Error(`Invalid ${name} position in ${configPath}`);
   }
 }
 
-if (!/^[\w-]+$/.test(fixture.language) || !/^[\w-]+$/.test(fixture.fence) ||
-    typeof fixture.source !== 'string' || fixture.source.length === 0 ||
-    (fixture.extension !== undefined &&
-      (!fixture.extension || typeof fixture.extension !== 'object' ||
-        Array.isArray(fixture.extension) ||
-        (fixture.extension.id !== undefined &&
-          (typeof fixture.extension.id !== 'string' || !fixture.extension.id))))) {
-  throw new Error(`Invalid compatibility fixture: ${fixturePath}`);
+function caseFile(relativePath, name) {
+  if (typeof relativePath !== 'string' || !relativePath || path.isAbsolute(relativePath)) {
+    throw new Error(`Invalid ${name} path in ${configPath}`);
+  }
+  const fullPath = path.resolve(configDir, relativePath);
+  const withinCase = path.relative(configDir, fullPath);
+  if (!withinCase || withinCase === '..' || withinCase.startsWith(`..${path.sep}`) ||
+      path.isAbsolute(withinCase)) {
+    throw new Error(`Invalid ${name} path in ${configPath}`);
+  }
+  return fullPath;
 }
-const sourcePath = path.resolve(caseDir, fixture.source);
-const relativeSource = path.relative(caseDir, sourcePath);
-const sourceExtension = path.extname(sourcePath);
-if (path.isAbsolute(fixture.source) || !relativeSource || relativeSource === '..' ||
-    relativeSource.startsWith(`..${path.sep}`) ||
-    path.isAbsolute(relativeSource) || !/^\.[\w-]+$/.test(sourceExtension)) {
-  throw new Error(`Invalid source path in ${fixturePath}`);
+
+if (!/^[\w-]+$/.test(config.language) || !/^[\w-]+$/.test(config.fence) ||
+    (config.extension !== undefined &&
+      (!config.extension || typeof config.extension !== 'object' ||
+        Array.isArray(config.extension) ||
+        (config.extension.id !== undefined &&
+          (typeof config.extension.id !== 'string' || !config.extension.id))))) {
+  throw new Error(`Invalid compatibility config: ${configPath}`);
 }
-const source = fs.readFileSync(sourcePath, 'utf8');
-if (!source) throw new Error(`Empty source file: ${sourcePath}`);
-const lines = source.split(/\r?\n/);
-position(fixture.completion, 'completion', lines);
-position(fixture.hover, 'hover', lines);
-const vsix = fixture.extension?.vsix;
+const sourcePath = caseFile(config.source, 'source');
+const templatePath = caseFile(config.template, 'template');
+if (!/^\.[\w-]+$/.test(path.extname(sourcePath))) {
+  throw new Error(`Invalid source path in ${configPath}`);
+}
+const baselinePath = path.join(workspace, `baseline${path.extname(sourcePath)}`);
+const sourceText = fs.readFileSync(sourcePath, 'utf8');
+if (!sourceText) throw new Error(`Empty source file: ${sourcePath}`);
+const sourceLines = sourceText.split(/\r?\n/);
+validatePosition(config.completion, 'completion', sourceLines);
+validatePosition(config.hover, 'hover', sourceLines);
+const template = fs.readFileSync(templatePath, 'utf8');
+const sourceMarker = '{{source}}';
+const fenceMarker = '{{fence}}';
+const markerIndex = template.indexOf(sourceMarker);
+if (markerIndex < 0 || template.indexOf(sourceMarker, markerIndex + sourceMarker.length) !== -1 ||
+    !template.includes(fenceMarker)) {
+  throw new Error(`Markdown template needs one ${sourceMarker} and at least one ${fenceMarker}: ${templatePath}`);
+}
+const beforeSource = template.slice(0, markerIndex).replaceAll(fenceMarker, config.fence);
+const afterSource = template.slice(markerIndex + sourceMarker.length).replaceAll(fenceMarker, config.fence);
+const prefixLines = beforeSource.split(/\r?\n/);
+const markdownSourceStart = {
+  line: prefixLines.length - 1,
+  character: prefixLines[prefixLines.length - 1].length,
+};
+const vsix = config.extension?.vsix;
 if (vsix !== undefined &&
     (typeof vsix !== 'string' || path.basename(vsix) !== vsix ||
       !/\.vsix$/i.test(vsix))) {
-  throw new Error(`Invalid VSIX filename in ${fixturePath}`);
+  throw new Error(`Invalid VSIX filename in ${configPath}`);
 }
 const vsixPath = vsix && path.join(envDir, 'extensions', vsix);
 if (vsixPath && !fs.existsSync(vsixPath)) {
@@ -62,12 +87,11 @@ fs.mkdirSync(extensionsDir, { recursive: true });
 fs.mkdirSync(path.join(userDataDir, 'User'), { recursive: true });
 fs.copyFileSync(path.join(envDir, 'settings.json'), path.join(userDataDir, 'User', 'settings.json'));
 fs.writeFileSync(path.join(workspace, '.vscode', 'settings.json'), JSON.stringify({
-  'markdownEmbeddedLanguages.languages': { [fixture.fence]: { language: fixture.language } },
+  'markdownEmbeddedLanguages.languages': { [config.fence]: { language: config.language } },
 }, null, 2));
-fs.writeFileSync(path.join(workspace, `baseline${sourceExtension}`), source);
-fs.writeFileSync(path.join(workspace, 'sample.md'),
-  `# Compatibility probe\n\n\`\`\`${fixture.fence}\n${source.endsWith('\n') ? source : `${source}\n`}\`\`\`\n`);
-fs.writeFileSync(path.join(runDir, 'fixture.json'), JSON.stringify(fixture, null, 2));
+fs.copyFileSync(sourcePath, baselinePath);
+fs.writeFileSync(path.join(workspace, 'sample.md'), beforeSource + sourceText + afterSource);
+fs.writeFileSync(path.join(runDir, 'config.json'), JSON.stringify({ ...config, markdownSourceStart }, null, 2));
 
 function vscodeExecutable() {
   if (process.env.VSCODE_CLI) return process.env.VSCODE_CLI;
@@ -119,7 +143,7 @@ async function run() {
   if (launchError) throw launchError;
   if (!fs.existsSync(resultPath)) throw new Error(`VS Code test timed out; inspect ${runDir}`);
   const result = JSON.parse(fs.readFileSync(resultPath, 'utf8'));
-  console.log(`VS Code ${result.vscodeVersion}; language: ${fixture.language}`);
+  console.log(`VS Code ${result.vscodeVersion}; language: ${config.language}`);
   if (result.extension) console.log(`Extension ${result.extension.id}: ${result.extension.present ? 'installed' : 'missing'}`);
   if (result.baseline && result.markdown) {
     console.log(`Completion: baseline ${result.baseline.completionCount}, Markdown ${result.markdown.completionCount} (${result.summary.completion})`);

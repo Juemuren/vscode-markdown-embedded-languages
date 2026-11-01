@@ -75,9 +75,10 @@
 
 - `fence`：Markdown fence 名称
 - `language`：VS Code 语言 ID
-- `source`：相对于配置目录的源码文件路径。文件内容会同时写入普通代码文件和 Markdown fence，应包含可触发补全、悬停及诊断的位置
-- `completion` / `hover`：相对于源码文件内容从 `0` 开始的行号与列号，用于指定在什么位置触发补全和悬停
+- `source`：相对于配置目录的源码文件路径。源码文件内容会被写入测试工作区的 `baseline.*` 中，文件内容应包含可触发补全、悬停及诊断的位置
+- `template`：相对于配置目录的 Markdown 模板路径。模板中的 `{{fence}}` 会替换为 `fence` 的值，`{{source}}` 会替换为 `source` 文件中的内容。模板文件中必须包含一个 `{{source}}` 和至少一个 `{{fence}}`。生成的文件位于测试工作区的 `sample.md`
+- `completion` / `hover`：相对于 `source` 文件内容从 `0` 开始的行号与列号，用于指定在什么位置触发补全和悬停。Markdown 文件中的补全和悬停位置会根据 `{{source}}` 的插入位置自动计算，不需要手工调整
 - `extension.id`：（可选）在报告中显示是否安装并激活指定的语言扩展。VS Code 根据识别到的语言和用户配置选择扩展；该配置项不改变 VS Code 实际使用的语言扩展，报告结果中也不包含 VS Code 实际使用的语言扩展
 - `extension.vsix`：（可选）放在 `compat/envs/extensions/` 下的 VSIX 文件名。运行前会安装到本次检测的隔离扩展目录；安装失败则停止检测。内置扩展的检测无需填写此项
 
-默认用例为 `javascript`，配置和源码保存在 [compat/configs/javascript/](../compat/configs/javascript/) 中。要添加其它语言扩展的用例，可复制该目录到 `compat/configs/example/`，然后参照上述说明修改配置与源码，最后用 `npm run test:compat -- example` 运行新用例。
+默认用例为 `javascript`，配置、源码及模板保存在 [compat/configs/javascript/](../compat/configs/javascript/) 中。要添加其它语言扩展的用例，可复制该目录到 `compat/configs/example/`，然后参照上述说明修改配置、源码与模板，最后用 `npm run test:compat -- example` 运行新用例。

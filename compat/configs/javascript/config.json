@@ -5,6 +5,7 @@
     "id": "vscode.typescript-language-features"
   },
   "source": "source.js",
+  "template": "template.md",
   "completion": { "line": 1, "character": 5 },
   "hover": { "line": 0, "character": 16 }
 }

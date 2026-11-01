@@ -49,7 +49,6 @@ existing VSCode markdown preview
         "grammar": "./grammars/javascript.tmLanguage.json"
       }
     }
-    }
   }
 }
 ```
