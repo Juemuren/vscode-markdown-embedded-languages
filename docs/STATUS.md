@@ -33,7 +33,8 @@
 
 | 语言         | 扩展                                  | 补全 | 悬停 | 诊断 |
 | ------------ | ------------------------------------- | ---- | ---- | ---- |
-| `javascript` | `vscode.typescript-language-features` | ✅   | ✅   | ✅   |
+| `javascript` | `vscode.typescript-language-features` | ✅   | ✅   | ❌   |
+| `latex`      | `james-yu.latex-workshop`             | ✅   | ❌   | ❌   |
 
 ### highlight
 
