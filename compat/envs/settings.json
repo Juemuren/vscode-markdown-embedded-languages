@@ -1,4 +1,5 @@
 {
   "extensions.autoUpdate": false,
-  "update.mode": "none"
+  "update.mode": "none",
+  "editor.wordBasedSuggestions": "off"
 }

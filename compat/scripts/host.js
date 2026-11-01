@@ -13,6 +13,47 @@ function diagnostics(document) {
   }));
 }
 
+function unmatchedItems(expected, actual, key = item => item) {
+  const counts = new Map();
+  for (const item of actual) {
+    const id = key(item);
+    counts.set(id, (counts.get(id) ?? 0) + 1);
+  }
+  return expected.filter(item => {
+    const id = key(item);
+    const count = counts.get(id) ?? 0;
+    if (count === 0) return true;
+    counts.set(id, count - 1);
+    return false;
+  });
+}
+
+function compareItems(baseline, markdown, key) {
+  if (baseline.length === 0) return 'not exercised';
+  if (markdown.length === 0) return 'missing';
+  return unmatchedItems(baseline, markdown, key).length === 0 &&
+    unmatchedItems(markdown, baseline, key).length === 0 ? 'forwarded' : 'partial';
+}
+
+function semanticTokens(tokens, legend) {
+  const decoded = [];
+  let line = 0;
+  let character = 0;
+  for (let index = 0; index < (tokens?.data?.length ?? 0); index += 5) {
+    const lineDelta = tokens.data[index];
+    line += lineDelta;
+    character = lineDelta === 0 ? character + tokens.data[index + 1] : tokens.data[index + 1];
+    decoded.push({
+      line, character,
+      length: tokens.data[index + 2],
+      tokenType: legend?.tokenTypes?.[tokens.data[index + 3]] ?? `#${tokens.data[index + 3]}`,
+      tokenModifiers: legend?.tokenModifiers?.filter((_, bit) =>
+        (tokens.data[index + 4] & (1 << bit)) !== 0) ?? [`#${tokens.data[index + 4]}`],
+    });
+  }
+  return decoded;
+}
+
 async function probe(document, completion, hover) {
   await vscode.window.showTextDocument(document);
   let items = [];
@@ -46,6 +87,9 @@ exports.run = async function run() {
     const workspace = path.join(runDir, 'workspace');
     const extensionId = config.extension?.id;
     const extension = extensionId && vscode.extensions.getExtension(extensionId);
+    if (config.extension?.vsix && extensionId && !extension) {
+      throw new Error(`Installed extension is unavailable in test host: ${extensionId}`);
+    }
     result.extension = extensionId ? {
       id: extensionId, present: !!extension, activeBefore: extension?.isActive,
     } : undefined;
@@ -73,16 +117,35 @@ exports.run = async function run() {
         isDirty: document.isDirty,
         diagnostics: diagnostics(document),
       }));
-    const tokens = await vscode.commands.executeCommand('vscode.provideDocumentSemanticTokens', markdown.uri);
-    result.markdown.semanticTokenCount = (tokens?.data?.length ?? 0) / 5;
+    const baselineLegend = await vscode.commands.executeCommand(
+      'vscode.provideDocumentSemanticTokensLegend', baseline.uri);
+    const markdownLegend = await vscode.commands.executeCommand(
+      'vscode.provideDocumentSemanticTokensLegend', markdown.uri);
+    const baselineTokens = semanticTokens(await vscode.commands.executeCommand(
+      'vscode.provideDocumentSemanticTokens', baseline.uri), baselineLegend);
+    const markdownTokens = semanticTokens(await vscode.commands.executeCommand(
+      'vscode.provideDocumentSemanticTokens', markdown.uri), markdownLegend);
+    const { markdownSourceStart: start, markdownSourceEnd: end } = config;
+    const embeddedTokens = markdownTokens.filter(token =>
+      (token.line > start.line || (token.line === start.line && token.character >= start.character)) &&
+      (token.line < end.line || (token.line === end.line && token.character < end.character)))
+      .map(token => ({
+        ...token,
+        line: token.line - start.line,
+        character: token.character - (token.line === start.line ? start.character : 0),
+      }));
+    result.baseline.semanticTokenCount = baselineTokens.length;
+    result.markdown.semanticTokenCount = markdownTokens.length;
+    result.markdown.embeddedSemanticTokenCount = embeddedTokens.length;
     if (result.extension) result.extension.activeAfter = extension?.isActive;
+    const markdownDiagnostics = result.markdown.diagnostics.map(item => ({
+      ...item, line: item.line - config.markdownSourceStart.line,
+    }));
+    const diagnosticKey = item => JSON.stringify([item.line, item.message, item.source]);
     result.summary = {
-      completion: result.baseline.completionCount === 0 ? 'not exercised' :
-        result.markdown.completionCount > 0 ? 'forwarded' : 'missing',
-      hover: result.baseline.hoverText.length === 0 ? 'not exercised' :
-        result.markdown.hoverText.length > 0 ? 'forwarded' : 'missing',
-      diagnostics: result.baseline.diagnostics.length === 0 ? 'not exercised' :
-        result.markdown.diagnostics.length > 0 ? 'forwarded' : 'missing',
+      completion: compareItems(result.baseline.completionLabels, result.markdown.completionLabels),
+      hover: compareItems(result.baseline.hoverText, result.markdown.hoverText),
+      diagnostics: compareItems(result.baseline.diagnostics, markdownDiagnostics, diagnosticKey),
     };
   } catch (error) {
     result.error = String(error?.stack ?? error);

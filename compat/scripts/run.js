@@ -18,8 +18,8 @@ const resultPath = path.join(runDir, 'result.json');
 
 function validatePosition(value, name, lines) {
   if (!value || !Number.isInteger(value.line) || !Number.isInteger(value.character) ||
-      value.line < 0 || value.line >= lines.length || value.character < 0 ||
-      value.character > lines[value.line].length) {
+      value.line < 1 || value.line > lines.length || value.character < 1 ||
+      value.character > lines[value.line - 1].length + 1) {
     throw new Error(`Invalid ${name} position in ${configPath}`);
   }
 }
@@ -38,11 +38,9 @@ function caseFile(relativePath, name) {
 }
 
 if (!/^[\w-]+$/.test(config.language) || !/^[\w-]+$/.test(config.fence) ||
-    (config.extension !== undefined &&
-      (!config.extension || typeof config.extension !== 'object' ||
-        Array.isArray(config.extension) ||
-        (config.extension.id !== undefined &&
-          (typeof config.extension.id !== 'string' || !config.extension.id))))) {
+    !config.extension || typeof config.extension !== 'object' ||
+    Array.isArray(config.extension) ||
+    typeof config.extension.id !== 'string' || !config.extension.id) {
   throw new Error(`Invalid compatibility config: ${configPath}`);
 }
 const sourcePath = caseFile(config.source, 'source');
@@ -71,6 +69,11 @@ const markdownSourceStart = {
   line: prefixLines.length - 1,
   character: prefixLines[prefixLines.length - 1].length,
 };
+const markdownSourceEnd = {
+  line: markdownSourceStart.line + sourceLines.length - 1,
+  character: sourceLines[sourceLines.length - 1].length +
+    (sourceLines.length === 1 ? markdownSourceStart.character : 0),
+};
 const vsix = config.extension?.vsix;
 if (vsix !== undefined &&
     (typeof vsix !== 'string' || path.basename(vsix) !== vsix ||
@@ -91,7 +94,13 @@ fs.writeFileSync(path.join(workspace, '.vscode', 'settings.json'), JSON.stringif
 }, null, 2));
 fs.copyFileSync(sourcePath, baselinePath);
 fs.writeFileSync(path.join(workspace, 'sample.md'), beforeSource + sourceText + afterSource);
-fs.writeFileSync(path.join(runDir, 'config.json'), JSON.stringify({ ...config, markdownSourceStart }, null, 2));
+fs.writeFileSync(path.join(runDir, 'config.json'), JSON.stringify({
+  ...config,
+  completion: { line: config.completion.line - 1, character: config.completion.character - 1 },
+  hover: { line: config.hover.line - 1, character: config.hover.character - 1 },
+  markdownSourceStart,
+  markdownSourceEnd,
+}, null, 2));
 
 const code = process.env.VSCODE_CLI || 'code';
 const args = [
@@ -114,9 +123,7 @@ async function run() {
       throw new Error(`VSIX installation failed: ${vsixPath} (${install.status ?? install.signal})`);
     }
     const installedExtensions = JSON.parse(fs.readFileSync(path.join(extensionsDir, 'extensions.json'), 'utf8'));
-    const installed = config.extension.id
-      ? installedExtensions.find(entry => entry.identifier?.id === config.extension.id)
-      : installedExtensions.at(-1);
+    const installed = installedExtensions.find(entry => entry.identifier?.id === config.extension.id);
     if (!installed?.relativeLocation) {
       throw new Error(`Installed extension not found in ${extensionsDir}: ${config.extension.id}`);
     }
@@ -145,7 +152,6 @@ async function run() {
     console.log(`Completion: baseline ${result.baseline.completionCount}, Markdown ${result.markdown.completionCount} (${result.summary.completion})`);
     console.log(`Hover: baseline ${result.baseline.hoverText.length}, Markdown ${result.markdown.hoverText.length} (${result.summary.hover})`);
     console.log(`Diagnostics: baseline ${result.baseline.diagnostics.length}, Markdown ${result.markdown.diagnostics.length} (${result.summary.diagnostics})`);
-    console.log(`Markdown semantic tokens: ${result.markdown.semanticTokenCount}`);
   }
   console.log(`Full result: ${resultPath}`);
   if (result.error) throw new Error(result.error);

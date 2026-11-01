@@ -6,6 +6,6 @@
   },
   "source": "source.js",
   "template": "template.md",
-  "completion": { "line": 1, "character": 5 },
-  "hover": { "line": 0, "character": 16 }
+  "completion": { "line": 2, "character": 6 },
+  "hover": { "line": 1, "character": 17 }
 }

@@ -37,8 +37,9 @@
 
 语言扩展兼容性检测任务会启动独立的 VS Code 扩展宿主，结束后在终端中汇总结果
 
-- `forwarded` 表示普通文件与 Markdown 都返回了该能力
-- `missing` 表示普通文件有结果而 Markdown 没有
+- `forwarded` 表示普通文件和 Markdown 中的结果相同
+- `partial` 表示普通文件和 Markdown 都有结果但不完全相同
+- `missing` 表示普通文件有结果而 Markdown 没有对应结果
 - `not exercised` 表示普通文件本身没有产生可对照的结果
 
 结果也同时保存在 `.tmp/compat/<运行编号>/result.json` 中。
@@ -77,8 +78,8 @@
 - `language`：VS Code 语言 ID
 - `source`：相对于配置目录的源码文件路径。源码文件内容会被写入测试工作区的 `baseline.*` 中，文件内容应包含可触发补全、悬停及诊断的位置
 - `template`：相对于配置目录的 Markdown 模板路径。模板中的 `{{fence}}` 会替换为 `fence` 的值，`{{source}}` 会替换为 `source` 文件中的内容。模板文件中必须包含一个 `{{source}}` 和至少一个 `{{fence}}`。生成的文件位于测试工作区的 `sample.md`
-- `completion` / `hover`：相对于 `source` 文件内容从 `0` 开始的行号与列号，用于指定在什么位置触发补全和悬停。Markdown 文件中的补全和悬停位置会根据 `{{source}}` 的插入位置自动计算，不需要手工调整
-- `extension.id`：（可选）在报告中显示是否安装并激活指定的语言扩展。VS Code 根据识别到的语言和用户配置选择扩展；该配置项不改变 VS Code 实际使用的语言扩展，报告结果中也不包含 VS Code 实际使用的语言扩展
+- `completion` / `hover`：相对于 `source` 文件内容从 `1` 开始的行号与列号，用于指定在什么位置触发补全和悬停。Markdown 文件中的补全和悬停位置会根据 `{{source}}` 的插入位置自动计算，不需要手工调整
+- `extension.id`：在报告中显示是否安装并激活指定的语言扩展。若填写了 `extension.vsix`，则 `extension.id` 还用于在隔离目录中定位并加载指定的扩展。由于 VS Code 根据识别到的语言和用户配置选择扩展，因此该配置项不一定能够改变 VS Code 实际使用的语言扩展，报告结果中也无法确定 VS Code 实际使用的语言扩展
 - `extension.vsix`：（可选）放在 `compat/envs/extensions/` 下的 VSIX 文件名。运行前会安装到本次检测的隔离扩展目录；安装失败则停止检测。内置扩展的检测无需填写此项
 
 默认用例为 `javascript`，配置、源码及模板保存在 [compat/configs/javascript/](../compat/configs/javascript/) 中。要添加其它语言扩展的用例，可复制该目录到 `compat/configs/example/`，然后参照上述说明修改配置、源码与模板，最后用 `npm run test:compat -- example` 运行新用例。
