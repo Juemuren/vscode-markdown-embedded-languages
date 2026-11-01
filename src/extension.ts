@@ -228,7 +228,7 @@ export function activate(context: vscode.ExtensionContext): void {
           candidate.uri.toString() === entry.uri.query);
         if (source) void refresh(source);
       }
-      return;
+      if (key || availableIndex >= 0) return;
     }
     if (document.languageId !== 'markdown') return;
     const key = document.uri.toString();
