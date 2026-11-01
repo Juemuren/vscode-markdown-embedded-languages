@@ -88,16 +88,11 @@ exports.run = async function run() {
     result.baseline = await probe(baseline, config.completion, config.hover);
     result.markdown = await probe(markdown,
       markdownPosition(config.completion), markdownPosition(config.hover));
-    result.virtualDocuments = vscode.workspace.textDocuments
-      .filter(document => document.uri.scheme === 'markdown-embedded-language')
-      .map(document => ({ languageId: document.languageId, diagnostics: diagnostics(document) }));
-    result.untitledDocuments = vscode.workspace.textDocuments
-      .filter(document => document.uri.scheme === 'untitled' && document.languageId === config.language)
-      .map(document => ({
-        languageId: document.languageId,
-        isDirty: document.isDirty,
-        diagnostics: diagnostics(document),
-      }));
+    result.fileMirrors = vscode.workspace.textDocuments
+      .filter(document => document.uri.scheme === 'file' && document.languageId === config.language &&
+        document.uri.toString() !== baseline.uri.toString())
+      .map(document => ({ uri: document.uri.toString(), isDirty: document.isDirty,
+        diagnostics: diagnostics(document) }));
     if (result.extension) result.extension.activeAfter = extension?.isActive;
     const markdownDiagnostics = result.markdown.diagnostics.map(item => ({
       ...item, line: item.line - config.markdownSourceStart.line,
