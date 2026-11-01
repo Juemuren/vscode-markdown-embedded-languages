@@ -66,19 +66,18 @@
 
 配置分为全局环境配置和单次检测的配置。
 
-全局环境配置包含
+全局环境配置位于 `compat/envs/` 目录，包含
 
 - 全局用户设置，位于 [compat/envs/settings.json](../compat/envs/settings.json)。每次检测运行前会被复制到 `.tmp/compat/<运行编号>/user-data/User/settings.json` 中。工作区设置由脚本根据单次测试的配置写入
-- 扩展 VSIX 文件，将其放入 [compat/envs/extensions/](../compat/envs/extensions/) 下。如果单次检测的配置中指定了扩展的 `vsix` 文件名，那么脚本会从这个目录下寻找 `vsix` 文件并安装扩展。检测环境的扩展安装目录位于 `.tmp/compat/<运行编号>/extensions`，不影响日常的 VS Code 扩展目录
+- 扩展 VSIX 文件，位于 [compat/envs/extensions/](../compat/envs/extensions/) 下。如果单次检测的配置在 `extension.vsix` 中填写了文件名，那么脚本会去 `compat/envs/extensions/` 目录下寻找对应的 VSIX 文件并安装扩展。检测环境的扩展安装目录位于 `.tmp/compat/<运行编号>/extensions`，不影响日常的 VS Code 扩展目录
 
-单次检测的配置包含
+单次检测的配置位于 `compat/configs/<用例名>/` 目录，其中 `config.json` 是单次检测的配置文件，包含
 
+- `fence`：Markdown fence 名称
 - `language`：VS Code 语言 ID
-- `alias`：Markdown fence 名称
-- `extension`：基线文件扩展名
-- `source`：同时写入普通代码文件和 Markdown fence 的测试代码。应包含可触发补全、悬停及诊断的位置
-- `completion` / `hover`：相对于 `source` 从 `0` 开始的行号与列号
-- `extensionId`：（可选）在报告中显示是否安装并激活指定的语言扩展。VS Code 根据识别到的语言和用户配置选择扩展；该配置项不改变 VS Code 实际使用的语言扩展，报告结果中也不包含 VS Code 实际使用的语言扩展
-- `vsix`：（可选）放在 `compat/envs/extensions/` 下的 VSIX 文件名。运行前会安装到本次检测的隔离扩展目录；安装失败则停止检测。内置扩展的检测无需填写 `vsix`
+- `source`：相对于配置目录的源码文件路径。文件内容会同时写入普通代码文件和 Markdown fence，应包含可触发补全、悬停及诊断的位置
+- `completion` / `hover`：相对于源码文件内容从 `0` 开始的行号与列号，用于指定在什么位置触发补全和悬停
+- `extension.id`：（可选）在报告中显示是否安装并激活指定的语言扩展。VS Code 根据识别到的语言和用户配置选择扩展；该配置项不改变 VS Code 实际使用的语言扩展，报告结果中也不包含 VS Code 实际使用的语言扩展
+- `extension.vsix`：（可选）放在 `compat/envs/extensions/` 下的 VSIX 文件名。运行前会安装到本次检测的隔离扩展目录；安装失败则停止检测。内置扩展的检测无需填写此项
 
-默认用例为 `javascript`，配置保存在 [compat/configs/javascript.json](../compat/configs/javascript.json) 中。要添加其它语言扩展的用例，可复制其内容到 `compat/configs/example.json` 文件中，然后参照上述说明修改配置，最后用 `npm run test:compat -- example` 运行新用例。
+默认用例为 `javascript`，配置和源码保存在 [compat/configs/javascript/](../compat/configs/javascript/) 中。要添加其它语言扩展的用例，可复制该目录到 `compat/configs/example/`，然后参照上述说明修改配置与源码，最后用 `npm run test:compat -- example` 运行新用例。

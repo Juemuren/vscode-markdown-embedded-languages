@@ -44,12 +44,13 @@ exports.run = async function run() {
     if (!runDir) throw new Error('COMPAT_RUN_DIR is missing');
     const fixture = JSON.parse(fs.readFileSync(path.join(runDir, 'fixture.json'), 'utf8'));
     const workspace = path.join(runDir, 'workspace');
-    const extension = fixture.extensionId && vscode.extensions.getExtension(fixture.extensionId);
-    result.extension = fixture.extensionId ? {
-      id: fixture.extensionId, present: !!extension, activeBefore: extension?.isActive,
+    const extensionId = fixture.extension?.id;
+    const extension = extensionId && vscode.extensions.getExtension(extensionId);
+    result.extension = extensionId ? {
+      id: extensionId, present: !!extension, activeBefore: extension?.isActive,
     } : undefined;
     const baseline = await vscode.workspace.openTextDocument(
-      vscode.Uri.file(path.join(workspace, `baseline.${fixture.extension}`)));
+      vscode.Uri.file(path.join(workspace, `baseline${path.extname(fixture.source)}`)));
     const markdown = await vscode.workspace.openTextDocument(
       vscode.Uri.file(path.join(workspace, 'sample.md')));
     if (baseline.languageId !== fixture.language) {

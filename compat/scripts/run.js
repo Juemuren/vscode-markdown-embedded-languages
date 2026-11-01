@@ -4,9 +4,10 @@ const { spawn, spawnSync } = require('node:child_process');
 
 const project = path.resolve(__dirname, '..', '..');
 const caseName = process.argv[2] ?? 'javascript';
-const fixturePath = /^[\w-]+$/.test(caseName)
-  ? path.join(__dirname, '..', 'configs', `${caseName}.json`)
+const caseDir = /^[\w-]+$/.test(caseName)
+  ? path.join(__dirname, '..', 'configs', caseName)
   : path.resolve(caseName);
+const fixturePath = path.join(caseDir, 'config.json');
 const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
 const envDir = path.join(project, 'compat', 'envs');
 const runDir = path.join(project, '.tmp', 'compat', `${Date.now()}-${process.pid}`);
@@ -23,20 +24,35 @@ function position(value, name, lines) {
   }
 }
 
-if (!/^[\w-]+$/.test(fixture.language) || !/^[\w-]+$/.test(fixture.alias) ||
-    !/^[\w-]+$/.test(fixture.extension) || typeof fixture.source !== 'string' ||
-    fixture.source.length === 0) {
+if (!/^[\w-]+$/.test(fixture.language) || !/^[\w-]+$/.test(fixture.fence) ||
+    typeof fixture.source !== 'string' || fixture.source.length === 0 ||
+    (fixture.extension !== undefined &&
+      (!fixture.extension || typeof fixture.extension !== 'object' ||
+        Array.isArray(fixture.extension) ||
+        (fixture.extension.id !== undefined &&
+          (typeof fixture.extension.id !== 'string' || !fixture.extension.id))))) {
   throw new Error(`Invalid compatibility fixture: ${fixturePath}`);
 }
-const lines = fixture.source.split(/\r?\n/);
+const sourcePath = path.resolve(caseDir, fixture.source);
+const relativeSource = path.relative(caseDir, sourcePath);
+const sourceExtension = path.extname(sourcePath);
+if (path.isAbsolute(fixture.source) || !relativeSource || relativeSource === '..' ||
+    relativeSource.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativeSource) || !/^\.[\w-]+$/.test(sourceExtension)) {
+  throw new Error(`Invalid source path in ${fixturePath}`);
+}
+const source = fs.readFileSync(sourcePath, 'utf8');
+if (!source) throw new Error(`Empty source file: ${sourcePath}`);
+const lines = source.split(/\r?\n/);
 position(fixture.completion, 'completion', lines);
 position(fixture.hover, 'hover', lines);
-if (fixture.vsix !== undefined &&
-    (typeof fixture.vsix !== 'string' || path.basename(fixture.vsix) !== fixture.vsix ||
-      !/\.vsix$/i.test(fixture.vsix))) {
+const vsix = fixture.extension?.vsix;
+if (vsix !== undefined &&
+    (typeof vsix !== 'string' || path.basename(vsix) !== vsix ||
+      !/\.vsix$/i.test(vsix))) {
   throw new Error(`Invalid VSIX filename in ${fixturePath}`);
 }
-const vsixPath = fixture.vsix && path.join(envDir, 'extensions', fixture.vsix);
+const vsixPath = vsix && path.join(envDir, 'extensions', vsix);
 if (vsixPath && !fs.existsSync(vsixPath)) {
   throw new Error(`VSIX file not found: ${vsixPath}`);
 }
@@ -46,11 +62,11 @@ fs.mkdirSync(extensionsDir, { recursive: true });
 fs.mkdirSync(path.join(userDataDir, 'User'), { recursive: true });
 fs.copyFileSync(path.join(envDir, 'settings.json'), path.join(userDataDir, 'User', 'settings.json'));
 fs.writeFileSync(path.join(workspace, '.vscode', 'settings.json'), JSON.stringify({
-  'markdownEmbeddedLanguages.languages': { [fixture.alias]: { language: fixture.language } },
+  'markdownEmbeddedLanguages.languages': { [fixture.fence]: { language: fixture.language } },
 }, null, 2));
-fs.writeFileSync(path.join(workspace, `baseline.${fixture.extension}`), fixture.source);
+fs.writeFileSync(path.join(workspace, `baseline${sourceExtension}`), source);
 fs.writeFileSync(path.join(workspace, 'sample.md'),
-  `# Compatibility probe\n\n\`\`\`${fixture.alias}\n${fixture.source.endsWith('\n') ? fixture.source : `${fixture.source}\n`}\`\`\`\n`);
+  `# Compatibility probe\n\n\`\`\`${fixture.fence}\n${source.endsWith('\n') ? source : `${source}\n`}\`\`\`\n`);
 fs.writeFileSync(path.join(runDir, 'fixture.json'), JSON.stringify(fixture, null, 2));
 
 function vscodeExecutable() {

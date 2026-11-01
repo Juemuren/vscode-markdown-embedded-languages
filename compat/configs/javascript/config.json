@@ -1,0 +1,10 @@
+{
+  "fence": "jsalias",
+  "language": "javascript",
+  "extension": {
+    "id": "vscode.typescript-language-features"
+  },
+  "source": "source.js",
+  "completion": { "line": 1, "character": 5 },
+  "hover": { "line": 0, "character": 16 }
+}
