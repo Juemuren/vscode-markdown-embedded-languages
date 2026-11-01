@@ -8,8 +8,11 @@ const fixturePath = /^[\w-]+$/.test(caseName)
   ? path.join(__dirname, '..', 'configs', `${caseName}.json`)
   : path.resolve(caseName);
 const fixture = JSON.parse(fs.readFileSync(fixturePath, 'utf8'));
+const envDir = path.join(project, 'compat', 'envs');
 const runDir = path.join(project, '.tmp', 'compat', `${Date.now()}-${process.pid}`);
 const workspace = path.join(runDir, 'workspace');
+const userDataDir = path.join(runDir, 'user-data');
+const extensionsDir = path.join(runDir, 'extensions');
 const resultPath = path.join(runDir, 'result.json');
 
 function position(value, name, lines) {
@@ -28,13 +31,20 @@ if (!/^[\w-]+$/.test(fixture.language) || !/^[\w-]+$/.test(fixture.alias) ||
 const lines = fixture.source.split(/\r?\n/);
 position(fixture.completion, 'completion', lines);
 position(fixture.hover, 'hover', lines);
+if (fixture.vsix !== undefined &&
+    (typeof fixture.vsix !== 'string' || path.basename(fixture.vsix) !== fixture.vsix ||
+      !/\.vsix$/i.test(fixture.vsix))) {
+  throw new Error(`Invalid VSIX filename in ${fixturePath}`);
+}
+const vsixPath = fixture.vsix && path.join(envDir, 'extensions', fixture.vsix);
+if (vsixPath && !fs.existsSync(vsixPath)) {
+  throw new Error(`VSIX file not found: ${vsixPath}`);
+}
 
 fs.mkdirSync(path.join(workspace, '.vscode'), { recursive: true });
-fs.mkdirSync(path.join(runDir, 'user-data', 'User'), { recursive: true });
-fs.writeFileSync(path.join(runDir, 'user-data', 'User', 'settings.json'), JSON.stringify({
-  'extensions.autoUpdate': false,
-  'update.mode': 'none',
-}, null, 2));
+fs.mkdirSync(extensionsDir, { recursive: true });
+fs.mkdirSync(path.join(userDataDir, 'User'), { recursive: true });
+fs.copyFileSync(path.join(envDir, 'settings.json'), path.join(userDataDir, 'User', 'settings.json'));
 fs.writeFileSync(path.join(workspace, '.vscode', 'settings.json'), JSON.stringify({
   'markdownEmbeddedLanguages.languages': { [fixture.alias]: { language: fixture.language } },
 }, null, 2));
@@ -59,11 +69,23 @@ const code = vscodeExecutable();
 const args = [
   `--extensionDevelopmentPath=${project}`,
   `--extensionTestsPath=${path.join(__dirname, 'host.js')}`,
-  `--user-data-dir=${path.join(runDir, 'user-data')}`,
+  `--user-data-dir=${userDataDir}`,
+  `--extensions-dir=${extensionsDir}`,
   '--disable-chromium-sandbox', '--disable-gpu', workspace,
 ];
 
 async function run() {
+  if (vsixPath) {
+    const install = spawnSync(code, [
+      '--install-extension', vsixPath,
+      `--user-data-dir=${userDataDir}`,
+      `--extensions-dir=${extensionsDir}`,
+    ], { cwd: project, stdio: 'inherit' });
+    if (install.error) throw install.error;
+    if (install.status !== 0) {
+      throw new Error(`VSIX installation failed: ${vsixPath} (${install.status ?? install.signal})`);
+    }
+  }
   const child = spawn(code, args, {
     cwd: project,
     env: { ...process.env, COMPAT_RUN_DIR: runDir },
