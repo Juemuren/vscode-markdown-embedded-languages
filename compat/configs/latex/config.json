@@ -1,0 +1,12 @@
+{
+  "fence": "texalias",
+  "language": "latex",
+  "extension": {
+    "id": "james-yu.latex-workshop",
+    "vsix": "James-Yu.latex-workshop-10.20.0.vsix"
+  },
+  "source": "source.tex",
+  "template": "template.md",
+  "completion": { "line": 3, "character": 13 },
+  "hover": { "line": 3, "character": 8 }
+}
